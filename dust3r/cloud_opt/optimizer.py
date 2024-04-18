@@ -7,11 +7,12 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import json
+import os
 
 from dust3r.cloud_opt.base_opt import BasePCOptimizer
 from dust3r.utils.geometry import xy_grid, geotrf
 from dust3r.utils.device import to_cpu, to_numpy
-
 
 class PointCloudOptimizer(BasePCOptimizer):
     """ Optimize a global scene, given a list of pairwise observations.
@@ -194,7 +195,13 @@ class PointCloudOptimizer(BasePCOptimizer):
         aligned_pred_i = geotrf(pw_poses, pw_adapt * self._stacked_pred_i)
         aligned_pred_j = geotrf(pw_poses, pw_adapt * self._stacked_pred_j)
 
-        # compute the less
+        # compute the loss
+        # print("i terms shapes", self.dist(proj_pts3d[self._ei], aligned_pred_i, weight=self._weight_i).shape,self.total_area_i)
+        # print("j terms shapes", self.dist(proj_pts3d[self._ej], aligned_pred_j, weight=self._weight_j).shape,self.total_area_j)
+        for k in range(len(self._ei)):
+            print(self._ei[k].item(), self._ej[k].item(),  "*"*10)
+            print((self.dist(proj_pts3d[self._ei[k]], aligned_pred_i[k], weight=self._weight_i[k]).sum()/ (self.im_areas)).item(),
+                  (self.dist(proj_pts3d[self._ej[k]], aligned_pred_j[k], weight=self._weight_j[k]).sum()/ (self.im_areas)).item() )
         li = self.dist(proj_pts3d[self._ei], aligned_pred_i, weight=self._weight_i).sum() / self.total_area_i
         lj = self.dist(proj_pts3d[self._ej], aligned_pred_j, weight=self._weight_j).sum() / self.total_area_j
 
@@ -246,3 +253,53 @@ def apply_mask(img, msk):
     img = img.copy()
     img[msk] = 0
     return img
+
+
+
+class GALossRecorder(PointCloudOptimizer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loss_log = []
+        self.im_areas = [h*w for h, w in self.imshapes]
+
+
+    def forward(self):
+        pw_poses = self.get_pw_poses()  # cam-to-world
+        pw_adapt = self.get_adaptors().unsqueeze(1)
+        proj_pts3d = self.get_pts3d(raw=True)
+
+        # rotate pairwise prediction according to pw_poses
+        aligned_pred_i = geotrf(pw_poses, pw_adapt * self._stacked_pred_i)
+        aligned_pred_j = geotrf(pw_poses, pw_adapt * self._stacked_pred_j)
+
+        # compute the loss
+        # print("i terms shapes", self.dist(proj_pts3d[self._ei], aligned_pred_i, weight=self._weight_i).shape,self.total_area_i)
+        # print("j terms shapes", self.dist(proj_pts3d[self._ej], aligned_pred_j, weight=self._weight_j).shape,self.total_area_j)
+        loss_log_one_iter= []
+        for k in range(len(self._ei)):
+            # print(self._ei[k].item(), self._ej[k].item(),  "*"*10)
+            # print(self.dist(proj_pts3d[self._ei[k]], aligned_pred_i[k], weight=self._weight_i[k]).sum().item(),
+            #       self.dist(proj_pts3d[self._ej[k]], aligned_pred_j[k], weight=self._weight_j[k]).sum().item())
+            loss_log_one_iter.append([self._ei[k].item(), 
+                                      self._ej[k].item(),
+                                 self.dist(proj_pts3d[self._ei[k]], aligned_pred_i[k], weight=self._weight_i[k]).sum().item(),
+                                 self.dist(proj_pts3d[self._ej[k]], aligned_pred_j[k], weight=self._weight_j[k]).sum().item(),
+                                 self._weight_i[k].sum().item(),
+                                 self._weight_j[k].sum().item()])
+
+
+
+
+        li = self.dist(proj_pts3d[self._ei], aligned_pred_i, weight=self._weight_i).sum() / self.total_area_i
+        lj = self.dist(proj_pts3d[self._ej], aligned_pred_j, weight=self._weight_j).sum() / self.total_area_j
+        self.loss_log.append(loss_log_one_iter)
+        return li + lj
+    
+    # def save_loss(self, path):
+    #     # Save dictionary to a file
+
+    #     with open(path, 'w') as f:
+    #         json.dump(self.loss_log, f)
+
+    
+        

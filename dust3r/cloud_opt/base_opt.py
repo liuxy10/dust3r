@@ -280,6 +280,7 @@ class BasePCOptimizer (nn.Module):
             details = -torch.ones((self.n_imgs, self.n_imgs))
 
         for e, (i, j) in enumerate(self.edges):
+            
             i_j = edge_str(i, j)
             # distance in image i and j
             aligned_pred_i = geotrf(pw_poses[e], pw_adapt[e] * self.pred_i[i_j])
@@ -384,7 +385,9 @@ def global_alignment_iter(net, cur_iter, niter, lr_base, lr_min, optimizer, sche
     adjust_learning_rate_by_lr(optimizer, lr)
     optimizer.zero_grad()
     loss = net()
+    # print(net.forward(), "*"*50)
     loss.backward()
     optimizer.step()
+    # print(loss)
 
     return float(loss)

@@ -6,7 +6,7 @@
 # --------------------------------------------------------
 from enum import Enum
 
-from .optimizer import PointCloudOptimizer
+from .optimizer import PointCloudOptimizer, GALossRecorder
 from .modular_optimizer import ModularPointCloudOptimizer
 from .pair_viewer import PairViewer
 
@@ -14,6 +14,7 @@ from .pair_viewer import PairViewer
 class GlobalAlignerMode(Enum):
     PointCloudOptimizer = "PointCloudOptimizer"
     ModularPointCloudOptimizer = "ModularPointCloudOptimizer"
+    GALossRecorder = "GALossRecorder"
     PairViewer = "PairViewer"
 
 
@@ -25,6 +26,8 @@ def global_aligner(dust3r_output, device, mode=GlobalAlignerMode.PointCloudOptim
         net = PointCloudOptimizer(view1, view2, pred1, pred2, **optim_kw).to(device)
     elif mode == GlobalAlignerMode.ModularPointCloudOptimizer:
         net = ModularPointCloudOptimizer(view1, view2, pred1, pred2, **optim_kw).to(device)
+    elif mode == GlobalAlignerMode.GALossRecorder:
+        net = GALossRecorder(view1, view2, pred1, pred2, **optim_kw).to(device)
     elif mode == GlobalAlignerMode.PairViewer:
         net = PairViewer(view1, view2, pred1, pred2, **optim_kw).to(device)
     else:

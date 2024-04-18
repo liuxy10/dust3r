@@ -143,7 +143,7 @@ def get_reconstructed_scene(outdir, model, device, silent, image_size, filelist,
 
     if mode == GlobalAlignerMode.PointCloudOptimizer:
         loss = scene.compute_global_alignment(init='mst', niter=niter, schedule=schedule, lr=lr)
-
+    
     outfile = get_3D_model_from_scene(outdir, silent, scene, min_conf_thr, as_pointcloud, mask_sky,
                                       clean_depth, transparent_cams, cam_size)
 
